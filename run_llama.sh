@@ -3,17 +3,18 @@ HF_HOME=${HF_HOME:-$(pwd)/huggingface}
 MODELS_DIR=${MODELS_DIR:-$(pwd)/models}
 DOCKER_IMAGE=${DOCKER_IMAGE:-local/ai/llama.cpp:latest}
 CONTAINER_NAME=${CONTAINER_NAME:-llama.cpp}
+CONTAINER_ARGS=${CONTAINER_ARGS:-}
 extra_args=""
 if [ ! -z "$MODELS_PRESETS" ]; then
     extra_args="$extra_args -v $MODELS_PRESETS:/llama/llamacpp_presets.ini:ro"
 fi
 exec docker run --rm \
-    --detach \
     --name ${CONTAINER_NAME} \
     -p 8000:8000 \
     -v $HF_HOME:/hf:ro \
     -v $MODELS_DIR:/models:ro \
     $extra_args \
+    $CONTAINER_ARGS \
     --memory=128g \
     --device=/dev/kfd \
     --device=/dev/dri \
@@ -24,5 +25,6 @@ exec docker run --rm \
     --security-opt seccomp=unconfined \
     --group-add=109 \
     --group-add 992 \
-        $DOCKER_IMAGE
+        $DOCKER_IMAGE \
+        $@
 
