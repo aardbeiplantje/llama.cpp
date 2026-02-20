@@ -29,7 +29,7 @@ RUN    \
 
 COPY llamacpp_presets.ini llamacpp_presets.ini
 
-RUN mkdir -p /llama.cpp/slots /llama.cpp/cache && chown -R llama-runtime:users /llama.cpp/slots /llama.cpp/cache
+RUN mkdir -p /llama.cpp/slots && chown -R llama-runtime:users /llama.cpp/
 USER llama-runtime
 WORKDIR /models
 ENV TMPDIR=/dev/shm
