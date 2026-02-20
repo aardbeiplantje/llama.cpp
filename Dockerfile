@@ -39,4 +39,4 @@ ENV HF_HOME=/hf
 ENV HSA_OVERRIDE_GFX_VERSION=11.5.1
 ENV AMD_SERIALIZE_KERNEL=1
 ENV GGML_CUDA_ENABLE_UNIFIED_MEMORY=1
-ENTRYPOINT ["/llama/llama-server", "--models-preset", "/llama/llamacpp_presets.ini", "--models-max", "4", "--models-dir", "/models/", "--no-webui", "--host", "::", "--port", "8000"]
+ENTRYPOINT ["/llama/llama-server", "--models-preset", "/llama/llamacpp_presets.ini", "--models-max", "4", "--models-dir", "/models/", "--models-autoload", "--no-webui", "--host", "::", "--port", "8000"]
