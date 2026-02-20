@@ -30,7 +30,7 @@ RUN    \
 COPY llamacpp_presets.ini llamacpp_presets.ini
 
 USER llama-runtime
-WORKDIR /llama-server
+WORKDIR /models
 ENV TMPDIR=/dev/shm
 ENV HF_HUB_ENABLE_HF_TRANSFER=0
 ENV HF_HUB_DISABLE_XET=1
