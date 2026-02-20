@@ -8,11 +8,13 @@ extra_args=""
 if [ ! -z "$MODELS_PRESETS" ]; then
     extra_args="$extra_args -v $MODELS_PRESETS:/llama/llamacpp_presets.ini:ro"
 fi
+LLAMA_DATA=${LLAMA_DATA:-llama.cpp-data-$LOGNAME}
 exec docker run --rm \
     --name ${CONTAINER_NAME} \
     -p 8000:8000 \
     -v $HF_HOME:/hf:ro \
     -v $MODELS_DIR:/models:ro \
+    -v $LLAMA_DATA:/llama.cpp:rw \
     $extra_args \
     $CONTAINER_ARGS \
     --memory=128g \
