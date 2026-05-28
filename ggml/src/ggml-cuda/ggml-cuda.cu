@@ -4782,7 +4782,7 @@ static enum ggml_backend_dev_type ggml_backend_cuda_device_get_type(ggml_backend
     ggml_backend_cuda_device_context * ctx = (ggml_backend_cuda_device_context *) dev->context;
 
     cudaDeviceProp prop;
-    CUDA_CHECK(cudaGetDeviceProperties(&prop, ggml_cuda_get_physical_device(ctx->device)));
+    CUDA_CHECK(cudaGetDeviceProperties(&prop, ctx->device));
 
     return prop.integrated
         ? GGML_BACKEND_DEVICE_TYPE_IGPU
