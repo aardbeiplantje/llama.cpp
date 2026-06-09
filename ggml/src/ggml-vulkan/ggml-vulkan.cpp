@@ -860,6 +860,8 @@ struct vk_device_struct {
     bool dot2_f16 {};
     bool ocp_fp4 {};
 
+    bool dot2_f16 {};
+
     bool pipeline_executable_properties_support {};
 
     bool device_fault {};
