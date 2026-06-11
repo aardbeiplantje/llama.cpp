@@ -189,6 +189,7 @@ int execute_command(std::vector<std::string>& command, std::string& stdout_str, 
         return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
     }
 #endif
+    return -1;
 }
 
 bool directory_exists(const std::string& path) {
@@ -390,7 +391,7 @@ void string_to_spv_func(std::string name, std::string in_path, std::string out_p
                 std::cerr << part << " ";
             }
             std::cerr << "\n\n" << stderr_str << std::endl;
-            compile_failed = true;
+            compile_failed.store(true);
             return;
         }
 
@@ -410,7 +411,7 @@ void string_to_spv_func(std::string name, std::string in_path, std::string out_p
         shader_fnames.push_back(std::make_pair(name, out_path));
     } catch (const std::exception& e) {
         std::cerr << "Error executing command for " << name << ": " << e.what() << std::endl;
-        compile_failed = true;
+        compile_failed.store(true);
     }
 }
 
@@ -1346,7 +1347,7 @@ int main(int argc, char** argv) {
 
     process_shaders();
 
-    if (compile_failed) {
+    if (compile_failed.load()) {
         std::cerr << "vulkan-shaders-gen: one or more shaders failed to compile" << std::endl;
         return EXIT_FAILURE;
     }
