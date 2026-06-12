@@ -1557,12 +1557,98 @@ void mul_mat_q_switch_J(ggml_backend_cuda_context & ctx, const mmq_args & args, 
 
 template <ggml_type type>
 void mul_mat_q_case(ggml_backend_cuda_context & ctx, const mmq_args & args, cudaStream_t stream) {
-    if (args.nrows_x % 128 == 0) {
-        constexpr bool fallback = false;
-        mul_mat_q_switch_J<type, fallback>(ctx, args, stream);
-    } else {
-        constexpr bool fallback = true;
-        mul_mat_q_switch_J<type, fallback>(ctx, args, stream);
+    const int    id     = ggml_cuda_get_device();
+    const int    cc     = ggml_cuda_info().devices[id].cc;
+    const size_t smpbo  = ggml_cuda_info().devices[id].smpbo;
+    const int warp_size = ggml_cuda_info().devices[id].warp_size;
+    const int nwarps    = mmq_get_nwarps_host(cc, warp_size);
+
+    const int mmq_x_max = get_mmq_x_max_host(cc);
+    const int mmq_y = get_mmq_y_host(cc);
+
+    int mmq_x_best  = 0;
+    int ntiles_x_best = INT_MAX;
+
+    int64_t ncols_picker = args.ncols_max;
+    if (args.expert_bounds != nullptr && GGML_CUDA_CC_IS_RDNA3(cc) && args.nchannels_x > 0) {
+        // In routed MoE, ncols_max is the worst-case per-expert width. Size the
+        // MMQ N-tile from the typical routed width while it is below the RDNA3
+        // max tile width. The launch grid still uses args.ncols_max.
+        const int64_t ncols_typical = (args.ncols_dst + args.nchannels_x - 1) / args.nchannels_x;
+        if (ncols_typical >= 1 && ncols_typical < mmq_x_max && ncols_typical < ncols_picker) {
+            ncols_picker = ncols_typical;
+        }
+    }
+
+    for (int mmq_x = 8; mmq_x <= mmq_x_max && ntiles_x_best > 1; mmq_x += 8) {
+        const int granularity = mmq_get_granularity_host(mmq_x, cc);
+
+        if (mmq_x % granularity != 0 || mmq_get_nbytes_shared<type>(mmq_x, mmq_y, cc, warp_size, nwarps) > smpbo) {
+            continue;
+        }
+
+        const int ntiles_x = (ncols_picker + mmq_x - 1) / mmq_x;
+
+        if (ntiles_x < ntiles_x_best) {
+            mmq_x_best = mmq_x;
+            ntiles_x_best = ntiles_x;
+        }
+    }
+
+    constexpr bool fallback = (args.nrows_x % 128 != 0);
+    switch (mmq_x_best) {
+        case   8:
+            launch_mul_mat_q<type,   8, fallback>(ctx, args, stream);
+            break;
+        case  16:
+            launch_mul_mat_q<type,  16, fallback>(ctx, args, stream);
+            break;
+        case  24:
+            launch_mul_mat_q<type,  24, fallback>(ctx, args, stream);
+            break;
+        case  32:
+            launch_mul_mat_q<type,  32, fallback>(ctx, args, stream);
+            break;
+        case  40:
+            launch_mul_mat_q<type,  40, fallback>(ctx, args, stream);
+            break;
+        case  48:
+            launch_mul_mat_q<type,  48, fallback>(ctx, args, stream);
+            break;
+        case  56:
+            launch_mul_mat_q<type,  56, fallback>(ctx, args, stream);
+            break;
+        case  64:
+            launch_mul_mat_q<type,  64, fallback>(ctx, args, stream);
+            break;
+        case  72:
+            launch_mul_mat_q<type,  72, fallback>(ctx, args, stream);
+            break;
+        case  80:
+            launch_mul_mat_q<type,  80, fallback>(ctx, args, stream);
+            break;
+        case  88:
+            launch_mul_mat_q<type,  88, fallback>(ctx, args, stream);
+            break;
+        case  96:
+            launch_mul_mat_q<type,  96, fallback>(ctx, args, stream);
+            break;
+        case 104:
+            launch_mul_mat_q<type, 104, fallback>(ctx, args, stream);
+            break;
+        case 112:
+            launch_mul_mat_q<type, 112, fallback>(ctx, args, stream);
+            break;
+        case 120:
+            launch_mul_mat_q<type, 120, fallback>(ctx, args, stream);
+            break;
+        case 128:
+            launch_mul_mat_q<type, 128, fallback>(ctx, args, stream);
+            break;
+        default:
+            fprintf(stderr, "mmq_x_best=%d\n", mmq_x_best);
+            GGML_ABORT("fatal error");
+            break;
     }
 }
 
