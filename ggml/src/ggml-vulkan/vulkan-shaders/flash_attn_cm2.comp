@@ -91,13 +91,6 @@ f16vec4 faDecodeVVector(const decodeBufFA_V bl_in, const uint blockCoords[2], co
     }
 }
 
-#ifdef GL_NV_cooperative_matrix_decode_vector
-#define FADECODEK , faDecodeK, faDecodeKVector
-#define FADECODEV , faDecodeV, faDecodeVVector
-#else
-#define FADECODEK , faDecodeK
-#define FADECODEV , faDecodeV
-#endif
 #endif
 
 layout (binding = 0) readonly buffer Q {uint8_t data_q[];};
