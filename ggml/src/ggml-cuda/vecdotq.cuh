@@ -95,6 +95,7 @@ static __device__ __forceinline__ int2 get_int_from_table_16(const int & q4, con
 }
 
 #include "../../rocmfp4/rocmfp4_hip_codebook.cuh"
+#include "../../rocmfp4/rocmfp4.h"
 
 static __device__ __forceinline__ uint32_t unpack_ksigns(const uint8_t v) {
     // v is a 7 bit int, with the 8th sign being encodable as popcnt

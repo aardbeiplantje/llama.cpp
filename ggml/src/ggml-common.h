@@ -1128,6 +1128,11 @@ GGML_TABLE_BEGIN(int8_t, kvalues_fp4, 16)
 GGML_TABLE_END()
 #define kvalues_mxfp4 kvalues_fp4
 
+// Signed integer FP4-like codebook (E2M1-derived, max magnitude 10)
+GGML_TABLE_BEGIN(int8_t, kvalues_rocmfp4, 16)
+    0, 1, 2, 3, 4, 6, 8, 10, 0, -1, -2, -3, -4, -6, -8, -10,
+GGML_TABLE_END()
+
 #define NGRID_IQ1S 2048
 #define IQ1S_DELTA 0.125f
 #define IQ1M_DELTA 0.125f
