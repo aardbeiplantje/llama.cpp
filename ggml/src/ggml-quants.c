@@ -6,6 +6,8 @@
 #include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-cpu.h"
 
+#include "../rocmfp4/rocmfp4.h"
+
 #include <math.h>
 #include <string.h>
 #include <assert.h>

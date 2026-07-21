@@ -4567,6 +4567,8 @@ class GGMLQuantizationType(IntEnum):
     NVFP4   = 40
     Q1_0    = 41
     Q2_0    = 42
+    Q4_0_ROCMFP4      = 100 # ROCmFP4 experimental UE4M3 scales + packed AMD FP4 blocks
+    Q4_0_ROCMFP4_FAST = 101 # ROCmFP4 single-scale speed layout
 
 
 class ExpertGatingFuncType(IntEnum):
@@ -4746,9 +4748,16 @@ GGML_QUANT_SIZES: dict[GGMLQuantizationType, tuple[int, int]] = {
     GGMLQuantizationType.TQ1_0:   (256, 2 + 4 * 13),
     GGMLQuantizationType.TQ2_0:   (256, 2 + 64),
     GGMLQuantizationType.MXFP4:   (32, 1 + 16),
+<<<<<<< HEAD
+   GGMLQuantizationType.NVFP4:   (64, 4 + 32),
+    GGMLQuantizationType.Q1_0:         (128, 2 + 16),
+    GGMLQuantizationType.Q4_0_ROCMFP4:      (32, 2 + 16),
+    GGMLQuantizationType.Q4_0_ROCMFP4_FAST: (32, 1 + 16),
+=======
     GGMLQuantizationType.NVFP4:   (64, 4 + 32),
     GGMLQuantizationType.Q1_0:    (128, 2 + 16),
     GGMLQuantizationType.Q2_0:    (64, 2 + 16),
+>>>>>>> bec4772f6 (Add Q2_0 quantization: type definition and CPU backend (#24448))
 }
 
 
