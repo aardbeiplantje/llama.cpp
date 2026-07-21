@@ -12,9 +12,14 @@ This document describes the integration of ROCmFP4 FP16 activation support into 
 
 ## What Was Merged
 
-### 3 New Commits
+### 4 New Commits
 
-1. **feat: add ROCmFP4 FP16 activation support** (`35ba304f7`)
+1. **feat: add ROCmFP4 Flash Attention support** (`cfd5ffacc`)
+   - Added vec_dot and dequantize implementations for ROCmFP4 types in Flash Attention
+   - Added Flash Attention template instances for ROCmFP4
+   - Updated `fattn-common.cuh` with ROCmFP4 type support
+
+2. **feat: add ROCmFP4 FP16 activation support** (`35ba304f7`)
    - Added `ggml/rocmfp4/` directory with CPU quantize backend
    - Added FP16 activation quantization types:
      - `Q4_0_ROCMFP4_FP16` (ftype 107)
@@ -22,11 +27,11 @@ This document describes the integration of ROCmFP4 FP16 activation support into 
    - Updated type registration across `ggml.h`, `llama.h`, `ggml.c`, `ggml-cpu.c`, `quantize.cpp`
    - Added `docs/FP4_FP6_FP8_Analysis.md` documentation
 
-2. **feat: add ROCmFP4 CUDA template instances** (`906f75aa3`)
+3. **feat: add ROCmFP4 CUDA template instances** (`906f75aa3`)
    - Added MMQ template instances for Q4_0_ROCMFP4 and Q4_0_ROCMFP4_FAST
    - Template files: `mmq-instance-q4_0_rocmfp4.cu`, `mmq-instance-q4_0_rocmfp4_fast.cu`
 
-3. **build: add ROCmFP4 CPU backend to CMakeLists** (`0c4b304c1`)
+4. **build: add ROCmFP4 CPU backend to CMakeLists** (`0c4b304c1`)
    - Added `ggml/rocmfp4/rocmfp4.c` to ggml-base target
    - Added `ggml_cuda_type_traits` specializations for ROCmFP4 types
    - Fixed includes in `vecdotq.cuh` and `common.cuh`
@@ -69,7 +74,6 @@ ROCmFP4 with FP16 activations **falls through to the standard MMQ path** using:
 
 ### Known Limitations
 
-- **Flash Attention**: ROCmFP4 Flash Attention template instances removed (no vec_dot implementation available)
 - **FP16 activations**: Use standard MMQ path instead of dedicated kernel
 
 ## Build Instructions
