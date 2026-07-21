@@ -69,6 +69,13 @@ static const std::vector<quant_option> QUANT_OPTIONS = {
     { "Q8_0",     LLAMA_FTYPE_MOSTLY_Q8_0,     " 7.96G, +0.0026 ppl @ Llama-3-8B",  },
     { "F16",      LLAMA_FTYPE_MOSTLY_F16,      "14.00G, +0.0020 ppl @ Mistral-7B",  },
     { "BF16",     LLAMA_FTYPE_MOSTLY_BF16,     "14.00G, -0.0050 ppl @ Mistral-7B",  },
+    { "Q4_0_ROCMFP4",          LLAMA_FTYPE_MOSTLY_Q4_0_ROCMFP4,          "ROCmFP4 UE4M3 scales + packed AMD FP4 blocks",  },
+    { "Q4_0_ROCMFP4_LEAN",     LLAMA_FTYPE_MOSTLY_Q4_0_ROCMFP4_LEAN,     "ROCmFP4 with Q5_K token embeddings",  },
+    { "Q4_0_ROCMFP4_COHERENT", LLAMA_FTYPE_MOSTLY_Q4_0_ROCMFP4_COHERENT, "ROCmFP4 with Q6_K token embeddings",  },
+    { "Q4_0_ROCMFP4_FAST",     LLAMA_FTYPE_MOSTLY_Q4_0_ROCMFP4_FAST,     "ROCmFP4 single-scale speed layout",  },
+    { "Q4_0_ROCMFP4_FAST_COHERENT", LLAMA_FTYPE_MOSTLY_Q4_0_ROCMFP4_FAST_COHERENT, "ROCmFP4 fast with Q6_K token embeddings",  },
+    { "Q4_0_ROCMFP4_STRIX",    LLAMA_FTYPE_MOSTLY_Q4_0_ROCMFP4_STRIX,    "ROCmFP4 Strix Halo quality/speed recipe",  },
+    { "Q4_0_ROCMFP4_STRIX_LEAN", LLAMA_FTYPE_MOSTLY_Q4_0_ROCMFP4_STRIX_LEAN, "ROCmFP4 Strix Halo size-biased K/V recipe",  },
     { "F32",      LLAMA_FTYPE_ALL_F32,         "26.00G              @ 7B",          },
     // Note: Ensure COPY comes after F32 to avoid ftype 0 from matching.
     { "COPY",     LLAMA_FTYPE_ALL_F32,         "only copy tensors, no quantizing",  },
