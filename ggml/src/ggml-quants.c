@@ -5569,6 +5569,20 @@ bool ggml_validate_row_data(enum ggml_type type, const void * data, size_t nbyte
                 GGML_UNUSED(data);
                 GGML_UNUSED(nb);
             } break;
+        case GGML_TYPE_Q4_0_ROCMFP4:
+            {
+                // ROCmFP4 uses UE4M3 scales (uint8_t) and packed FP4 blocks
+                // All byte values are valid for both scales and quantized data
+                GGML_UNUSED(data);
+                GGML_UNUSED(nb);
+            } break;
+        case GGML_TYPE_Q4_0_ROCMFP4_FAST:
+            {
+                // ROCmFP4 fast uses single UE4M3 scale and packed FP4 blocks
+                // All byte values are valid
+                GGML_UNUSED(data);
+                GGML_UNUSED(nb);
+            } break;
         case GGML_TYPE_Q2_K:
             {
                 VALIDATE_ROW_DATA_DM_F16_IMPL(block_q2_K, data, nb, d, dmin);
