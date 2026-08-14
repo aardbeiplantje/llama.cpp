@@ -1,3 +1,14 @@
+// ROCmFP4 type definitions for CUDA operations
+#ifndef QK_ROCMFP4
+#define QK_ROCMFP4 32
+#endif
+#ifndef QR_ROCMFP4
+#define QR_ROCMFP4 2
+#endif
+typedef struct { uint8_t qs[QK_ROCMFP4/2]; uint8_t e[2]; } block_rocmfp4;
+typedef struct { uint8_t qs[QK_ROCMFP4/2]; uint8_t e; } block_rocmfp4_fast;
+
+
 #include "common.cuh"
 #include "convert.cuh"
 
@@ -118,6 +129,29 @@ static __device__ __forceinline__ void dequantize_q8_0(const void * vx, const in
     v.x *= d;
     v.y *= d;
 }
+
+static __device__ __forceinline__ void dequantize_rocmfp4(const void * vx, const int64_t ib, const int iqs, float2 & v) {
+    const block_rocmfp4 * x = (const block_rocmfp4 *) vx;
+
+    const int q = x[ib].qs[iqs];
+    const float d0 = rocmfp4_ue4m3_to_fp32_half_finite(x[ib].e[0]);
+    const float d1 = rocmfp4_ue4m3_to_fp32_half_finite(x[ib].e[1]);
+
+    v.x = d0 * rocmfp4_decode_i8(q);
+    v.y = d1 * rocmfp4_decode_i8(q >> 4);
+}
+
+static __device__ __forceinline__ void dequantize_rocmfp4_fast(const void * vx, const int64_t ib, const int iqs, float2 & v) {
+    const block_rocmfp4_fast * x = (const block_rocmfp4_fast *) vx;
+
+    const int q = x[ib].qs[iqs];
+    const float d = rocmfp4_ue4m3_to_fp32_half_finite(x[ib].e);
+
+    v.x = d * rocmfp4_decode_i8(q);
+    v.y = d * rocmfp4_decode_i8(q >> 4);
+}
+
+
 
 //================================== k-quants
 
