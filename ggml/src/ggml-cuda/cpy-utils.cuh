@@ -2,6 +2,7 @@
 
 #include "ggml-common.h"
 #include "convert.cuh"
+#include "../../rocmfp4/rocmfp4_hip_scale.cuh"
 
 static __device__ __forceinline__ int best_index_int8(int n, const int8_t * val, float x) {
     if (x <= val[0]) return 0;
@@ -214,4 +215,54 @@ static __device__ void cpy_blck_f32_iq4_nl(const char * cxi, char * cdsti) {
 template<typename src_t, typename dst_t>
 static __device__ void cpy_1_scalar(const char * cxi, char * cdsti) {
     *(dst_t *) cdsti = ggml_cuda_cast<dst_t>(*(const src_t *) cxi);
+}
+
+template<typename src_t>
+static __device__ void cpy_blck_scalar_rocmfp4(const char * cxi, char * cdsti) {
+    const src_t * x = (const src_t *) cxi;
+    float tmp[QK_ROCMFP4];
+
+#pragma unroll
+    for (int j = 0; j < QK_ROCMFP4; ++j) {
+        tmp[j] = ggml_cuda_cast<float>(x[j]);
+    }
+
+    quantize_f32_rocmfp4_block(tmp, (block_rocmfp4 *) cdsti);
+}
+
+template<typename src_t>
+static __device__ void cpy_blck_scalar_rocmfp4_fast(const char * cxi, char * cdsti) {
+    const src_t * x = (const src_t *) cxi;
+    float tmp[QK_ROCMFP4];
+
+#pragma unroll
+    for (int j = 0; j < QK_ROCMFP4; ++j) {
+        tmp[j] = ggml_cuda_cast<float>(x[j]);
+    }
+
+    quantize_f32_rocmfp4_fast_block(tmp, (block_rocmfp4_fast *) cdsti);
+}
+
+static __device__ void cpy_blck_f32_rocmfp4(const char * cxi, char * cdsti) {
+    cpy_blck_scalar_rocmfp4<float>(cxi, cdsti);
+}
+
+static __device__ void cpy_blck_f32_rocmfp4_fast(const char * cxi, char * cdsti) {
+    cpy_blck_scalar_rocmfp4_fast<float>(cxi, cdsti);
+}
+
+static __device__ void cpy_blck_f16_rocmfp4(const char * cxi, char * cdsti) {
+    cpy_blck_scalar_rocmfp4<half>(cxi, cdsti);
+}
+
+static __device__ void cpy_blck_f16_rocmfp4_fast(const char * cxi, char * cdsti) {
+    cpy_blck_scalar_rocmfp4_fast<half>(cxi, cdsti);
+}
+
+static __device__ void cpy_blck_bf16_rocmfp4(const char * cxi, char * cdsti) {
+    cpy_blck_scalar_rocmfp4<nv_bfloat16>(cxi, cdsti);
+}
+
+static __device__ void cpy_blck_bf16_rocmfp4_fast(const char * cxi, char * cdsti) {
+    cpy_blck_scalar_rocmfp4_fast<nv_bfloat16>(cxi, cdsti);
 }

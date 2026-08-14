@@ -3841,6 +3841,12 @@ static vk_fa_tuning_params get_fa_tuning_params_coopmat2(const vk_device& device
 static vk_fa_tuning_params get_fa_tuning_params(const vk_device& device, uint32_t hsk, uint32_t hsv, uint32_t n_rows, uint32_t n_kv, ggml_type k_type, ggml_type v_type, bool f32acc) {
     FaCodePath path = device->coopmat2 ? FA_COOPMAT2 :
                       device->coopmat1_fa_support ? FA_COOPMAT1 : FA_SCALAR;
+    const bool rocmfp4_kv = k_type == GGML_TYPE_Q4_0_ROCMFP4 || k_type == GGML_TYPE_Q4_0_ROCMFP4_FAST ||
+                            v_type == GGML_TYPE_Q4_0_ROCMFP4 || v_type == GGML_TYPE_Q4_0_ROCMFP4_FAST;
+
+    if (rocmfp4_kv) {
+        path = FA_SCALAR;
+    }
 
     if (path == FA_COOPMAT2 && k_type == GGML_TYPE_BF16 && !device->coopmat2_bf16_support) {
         path = FA_COOPMAT1;
@@ -4644,10 +4650,18 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
 #if defined(GGML_VULKAN_FLOAT_E2M1_GLSLC_SUPPORT) && defined(GGML_VULKAN_FLOAT_E4M3_GLSLC_SUPPORT)
         if (device->ocp_fp4) {
             CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_MXFP4],   matmul_mxfp4_f16_ocp,   mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3)
+            CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_Q4_0_ROCMFP4], matmul_rocmfp4_f16_ocp, mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3)
+            CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_rocmfp4_fast_f16_ocp, mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3)
+            CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_Q4_0_ROCMFP4], matmul_rocmfp4_f16_ocp, mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3)
+            CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_rocmfp4_fast_f16_ocp, mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3)
+            CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_Q4_0_ROCMFP4], matmul_rocmfp4_f16_ocp, mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3)
+            CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_rocmfp4_fast_f16_ocp, mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3)
             CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_NVFP4],   matmul_nvfp4_f16_ocp,   mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3)
         } else
 #endif
         {
+            CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_Q4_0_ROCMFP4], matmul_rocmfp4_f16,
+            CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_rocmfp4_fast_f16,
             CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_MXFP4],   matmul_mxfp4_f16,   mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3)
             CREATE_MM2(pipeline_dequant_mul_mat_mat_f16[GGML_TYPE_NVFP4],   matmul_nvfp4_f16,   mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3)
         }
@@ -4685,6 +4699,10 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
 #if defined(GGML_VULKAN_FLOAT_E2M1_GLSLC_SUPPORT) && defined(GGML_VULKAN_FLOAT_E4M3_GLSLC_SUPPORT)
         if (device->ocp_fp4) {
             CREATE_MM2(pipeline_dequant_mul_mat_mat_id[GGML_TYPE_MXFP4],   matmul_id_subgroup_mxfp4_f16_ocp,   mmqid_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, 5)
+            CREATE_MM2(pipeline_dequant_mul_mat_mat_id[GGML_TYPE_Q4_0_ROCMFP4], matmul_id_subgroup_rocmfp4_f16_ocp,
+                mmqid_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, 5)
+            CREATE_MM2(pipeline_dequant_mul_mat_mat_id[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_id_subgroup_rocmfp4_fast_f16_ocp,
+                mmqid_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, 5)
             CREATE_MM2(pipeline_dequant_mul_mat_mat_id[GGML_TYPE_NVFP4],   matmul_id_subgroup_nvfp4_f16_ocp,   mmqid_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, 5)
         } else
 #endif
@@ -4755,6 +4773,8 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
         CREATE_MM2(GGML_TYPE_IQ3_S,   pipeline_dequant_mul_mat_mat[GGML_TYPE_IQ3_S],   matmul_iq3_s_f32,   mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, );
         CREATE_MM2(GGML_TYPE_IQ4_XS,  pipeline_dequant_mul_mat_mat[GGML_TYPE_IQ4_XS],  matmul_iq4_xs_f32,  mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, );
         CREATE_MM2(GGML_TYPE_IQ4_NL,  pipeline_dequant_mul_mat_mat[GGML_TYPE_IQ4_NL],  matmul_iq4_nl_f32,  mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, );
+        CREATE_MM2(GGML_TYPE_Q4_0_ROCMFP4, pipeline_dequant_mul_mat_mat[GGML_TYPE_Q4_0_ROCMFP4], matmul_rocmfp4_f32, mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, , 0)
+        CREATE_MM2(GGML_TYPE_Q4_0_ROCMFP4_FAST, pipeline_dequant_mul_mat_mat[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_rocmfp4_fast_f32, mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, , 0)
 
 #if defined(GGML_VULKAN_FLOAT_E2M1_GLSLC_SUPPORT) && defined(GGML_VULKAN_FLOAT_E4M3_GLSLC_SUPPORT)
         if (device->ocp_fp4) {
@@ -4808,6 +4828,10 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
 #endif
         {
             CREATE_MM2(GGML_TYPE_MXFP4,   pipeline_dequant_mul_mat_mat_id[GGML_TYPE_MXFP4],   matmul_id_subgroup_mxfp4_f32,   mmq_wg_denoms, warptile_mmq, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id);
+            CREATE_MM2(GGML_TYPE_Q4_0_ROCMFP4, pipeline_dequant_mul_mat_mat_id[GGML_TYPE_Q4_0_ROCMFP4], matmul_id_subgroup_rocmfp4_f32,
+                mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id);
+            CREATE_MM2(GGML_TYPE_Q4_0_ROCMFP4_FAST, pipeline_dequant_mul_mat_mat_id[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_id_subgroup_rocmfp4_fast_f32,
+                mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id);
             CREATE_MM2(GGML_TYPE_NVFP4,   pipeline_dequant_mul_mat_mat_id[GGML_TYPE_NVFP4],   matmul_id_subgroup_nvfp4_f32,   mmq_wg_denoms, warptile_mmq, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id);
         }
 #undef CREATE_MM2
@@ -4891,6 +4915,8 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
         CREATE_MM2(GGML_TYPE_IQ3_S,   pipeline_dequant_mul_mat_mat[GGML_TYPE_IQ3_S],   matmul_iq3_s_f32,   mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, , 0);
         CREATE_MM2(GGML_TYPE_IQ4_XS,  pipeline_dequant_mul_mat_mat[GGML_TYPE_IQ4_XS],  matmul_iq4_xs_f32,  mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, , 0);
         CREATE_MM2(GGML_TYPE_IQ4_NL,  pipeline_dequant_mul_mat_mat[GGML_TYPE_IQ4_NL],  matmul_iq4_nl_f32,  mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, , 0);
+        CREATE_MM2(GGML_TYPE_Q4_0_ROCMFP4, pipeline_dequant_mul_mat_mat[GGML_TYPE_Q4_0_ROCMFP4], matmul_rocmfp4_f32, mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, , 0)
+        CREATE_MM2(GGML_TYPE_Q4_0_ROCMFP4_FAST, pipeline_dequant_mul_mat_mat[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_rocmfp4_fast_f32, mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, , 0)
         CREATE_MM2(GGML_TYPE_MXFP4,   pipeline_dequant_mul_mat_mat[GGML_TYPE_MXFP4],   matmul_mxfp4_f32,   mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, , 0);
         CREATE_MM2(GGML_TYPE_NVFP4,   pipeline_dequant_mul_mat_mat[GGML_TYPE_NVFP4],   matmul_nvfp4_f32,   mmq_wg_denoms, warptile_mmq, vk_mat_mat_push_constants, 3, , 0);
 
@@ -4904,6 +4930,8 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
             CREATE_MMQ(GGML_TYPE_Q8_0, pipeline_dequant_mul_mat_mat_q8_1[GGML_TYPE_Q8_0], matmul_q8_0_q8_1, mmq_wg_denoms, warptile_mmq_int, vk_mat_mat_push_constants, 3, , 0);
 
             CREATE_MMQ(GGML_TYPE_MXFP4, pipeline_dequant_mul_mat_mat_q8_1[GGML_TYPE_MXFP4], matmul_mxfp4_q8_1, mmq_wg_denoms, warptile_mmq_int, vk_mat_mat_push_constants, 3, , 0);
+            CREATE_MMQ(GGML_TYPE_Q4_0_ROCMFP4, pipeline_dequant_mul_mat_mat_q8_1[GGML_TYPE_Q4_0_ROCMFP4], matmul_rocmfp4_q8_1, mmq_wg_denoms, warptile_mmq_int, vk_mat_mat_push_constants, 3, , 0)
+            CREATE_MMQ(GGML_TYPE_Q4_0_ROCMFP4_FAST, pipeline_dequant_mul_mat_mat_q8_1[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_rocmfp4_fast_q8_1, mmq_wg_denoms, warptile_mmq_int, vk_mat_mat_push_constants, 3, , 0)
 
             CREATE_MMQ(GGML_TYPE_Q2_K, pipeline_dequant_mul_mat_mat_q8_1[GGML_TYPE_Q2_K], matmul_q2_k_q8_1, mmq_wg_denoms, warptile_mmq_int_k, vk_mat_mat_push_constants, 3, , 0);
             CREATE_MMQ(GGML_TYPE_Q3_K, pipeline_dequant_mul_mat_mat_q8_1[GGML_TYPE_Q3_K], matmul_q3_k_q8_1, mmq_wg_denoms, warptile_mmq_int_k, vk_mat_mat_push_constants, 3, , 0);
@@ -4941,6 +4969,10 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
             CREATE_MM2(GGML_TYPE_IQ4_XS,  pipeline_dequant_mul_mat_mat_id[GGML_TYPE_IQ4_XS],  matmul_id_subgroup_iq4_xs_f32,  mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id, mul_mat_subgroup_size);
             CREATE_MM2(GGML_TYPE_IQ4_NL,  pipeline_dequant_mul_mat_mat_id[GGML_TYPE_IQ4_NL],  matmul_id_subgroup_iq4_nl_f32,  mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id, mul_mat_subgroup_size);
             CREATE_MM2(GGML_TYPE_MXFP4,   pipeline_dequant_mul_mat_mat_id[GGML_TYPE_MXFP4],   matmul_id_subgroup_mxfp4_f32,   mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id, mul_mat_subgroup_size);
+            CREATE_MM2(GGML_TYPE_Q4_0_ROCMFP4, pipeline_dequant_mul_mat_mat_id[GGML_TYPE_Q4_0_ROCMFP4], matmul_id_subgroup_rocmfp4_f32,
+                mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id);
+            CREATE_MM2(GGML_TYPE_Q4_0_ROCMFP4_FAST, pipeline_dequant_mul_mat_mat_id[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_id_subgroup_rocmfp4_fast_f32,
+                mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id);
             CREATE_MM2(GGML_TYPE_NVFP4,   pipeline_dequant_mul_mat_mat_id[GGML_TYPE_NVFP4],   matmul_id_subgroup_nvfp4_f32,   mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id, mul_mat_subgroup_size);
 
 #if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
@@ -4989,6 +5021,10 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
             CREATE_MM2(GGML_TYPE_IQ4_XS,  pipeline_dequant_mul_mat_mat_id[GGML_TYPE_IQ4_XS],  matmul_id_iq4_xs_f32,  mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id, 0);
             CREATE_MM2(GGML_TYPE_IQ4_NL,  pipeline_dequant_mul_mat_mat_id[GGML_TYPE_IQ4_NL],  matmul_id_iq4_nl_f32,  mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id, 0);
             CREATE_MM2(GGML_TYPE_MXFP4,   pipeline_dequant_mul_mat_mat_id[GGML_TYPE_MXFP4],   matmul_id_mxfp4_f32,   mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id, 0);
+            CREATE_MM2(GGML_TYPE_Q4_0_ROCMFP4, pipeline_dequant_mul_mat_mat_id[GGML_TYPE_Q4_0_ROCMFP4], matmul_id_subgroup_rocmfp4_f32,
+                mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id);
+            CREATE_MM2(GGML_TYPE_Q4_0_ROCMFP4_FAST, pipeline_dequant_mul_mat_mat_id[GGML_TYPE_Q4_0_ROCMFP4_FAST], matmul_id_subgroup_rocmfp4_fast_f32,
+                mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id);
             CREATE_MM2(GGML_TYPE_NVFP4,   pipeline_dequant_mul_mat_mat_id[GGML_TYPE_NVFP4],   matmul_id_nvfp4_f32,   mmq_wg_denoms, warptile_mmqid, vk_mat_mat_id_push_constants, mul_mat_id_param_count, _id, 0);
 
 #if defined(GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT)
@@ -5396,6 +5432,8 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
     ggml_vk_create_pipeline(device, device->pipeline_dequant[GGML_TYPE_IQ4_XS],  "dequant_iq4_xs",  dequant_iq4_xs_len,  dequant_iq4_xs_data,  "main", 2, 5 * sizeof(uint32_t), {256 * 32, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_dequant[GGML_TYPE_IQ4_NL],  "dequant_iq4_nl",  dequant_iq4_nl_len,  dequant_iq4_nl_data,  "main", 2, 5 * sizeof(uint32_t), {256 * 16, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_dequant[GGML_TYPE_MXFP4],   "dequant_mxfp4",   dequant_mxfp4_len,   dequant_mxfp4_data,   "main", 2, 5 * sizeof(uint32_t), {256 * 16, 1, 1}, {}, 1);
+    ggml_vk_create_pipeline(device, device->pipeline_dequant[GGML_TYPE_Q4_0_ROCMFP4], "dequant_rocmfp4", dequant_rocmfp4_len, dequant_rocmfp4_data, "main", 2, 5 * sizeof(uint32_t), {256 * 16, 1, 1}, {}, 1)
+    ggml_vk_create_pipeline(device, device->pipeline_dequant[GGML_TYPE_Q4_0_ROCMFP4_FAST], "dequant_rocmfp4_fast", dequant_rocmfp4_fast_len, dequant_rocmfp4_fast_data, "main", 2, 5 * sizeof(uint32_t), {256 * 16, 1, 1}, {}, 1)
     ggml_vk_create_pipeline(device, device->pipeline_dequant[GGML_TYPE_NVFP4],   "dequant_nvfp4",   dequant_nvfp4_len,   dequant_nvfp4_data,   "main", 2, 5 * sizeof(uint32_t), {256 * 16, 1, 1}, {}, 1);
 
     // get_rows
@@ -5425,6 +5463,8 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
     ggml_vk_create_pipeline(device, device->pipeline_get_rows[GGML_TYPE_IQ4_XS],  "get_rows_iq4_xs",  get_rows_iq4_xs_len,  get_rows_iq4_xs_data,  "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_get_rows[GGML_TYPE_IQ4_NL],  "get_rows_iq4_nl",  get_rows_iq4_nl_len,  get_rows_iq4_nl_data,  "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_get_rows[GGML_TYPE_MXFP4],   "get_rows_mxfp4",   get_rows_mxfp4_len,   get_rows_mxfp4_data,   "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1);
+    ggml_vk_create_pipeline(device, device->pipeline_get_rows[GGML_TYPE_Q4_0_ROCMFP4], "get_rows_rocmfp4", get_rows_rocmfp4_len, get_rows_rocmfp4_data, "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1)
+    ggml_vk_create_pipeline(device, device->pipeline_get_rows[GGML_TYPE_Q4_0_ROCMFP4_FAST], "get_rows_rocmfp4_fast", get_rows_rocmfp4_fast_len, get_rows_rocmfp4_fast_data, "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1)
     ggml_vk_create_pipeline(device, device->pipeline_get_rows[GGML_TYPE_NVFP4],   "get_rows_nvfp4",   get_rows_nvfp4_len,   get_rows_nvfp4_data,   "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_get_rows[GGML_TYPE_I32],     "get_rows_i32",     get_rows_i32_len,     get_rows_i32_data,     "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1);
 
@@ -5454,6 +5494,8 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
     ggml_vk_create_pipeline(device, device->pipeline_get_rows_f32[GGML_TYPE_IQ4_XS],  "get_rows_iq4_xs_f32",  get_rows_iq4_xs_f32_len,  get_rows_iq4_xs_f32_data,  "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_get_rows_f32[GGML_TYPE_IQ4_NL],  "get_rows_iq4_nl_f32",  get_rows_iq4_nl_f32_len,  get_rows_iq4_nl_f32_data,  "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_get_rows_f32[GGML_TYPE_MXFP4],   "get_rows_mxfp4_f32",   get_rows_mxfp4_f32_len,   get_rows_mxfp4_f32_data,   "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1);
+    ggml_vk_create_pipeline(device, device->pipeline_get_rows_f32[GGML_TYPE_Q4_0_ROCMFP4], "get_rows_rocmfp4_f32", get_rows_rocmfp4_f32_len, get_rows_rocmfp4_f32_data, "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1)
+    ggml_vk_create_pipeline(device, device->pipeline_get_rows_f32[GGML_TYPE_Q4_0_ROCMFP4_FAST], "get_rows_rocmfp4_fast_f32", get_rows_rocmfp4_fast_f32_len, get_rows_rocmfp4_fast_f32_data, "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1)
     ggml_vk_create_pipeline(device, device->pipeline_get_rows_f32[GGML_TYPE_NVFP4],   "get_rows_nvfp4_f32",   get_rows_nvfp4_f32_len,   get_rows_nvfp4_f32_data,   "main", 3, sizeof(vk_op_binary_push_constants), {1024, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_get_rows_back_f32, "get_rows_back_f32", get_rows_back_f32_len, get_rows_back_f32_data, "main", 3, sizeof(vk_op_binary_push_constants), {256, 1, 1}, {}, 1, true);
 
