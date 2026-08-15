@@ -1,5 +1,22 @@
 #include "common.cuh"
 #include "../../rocmfp4/rocmfp4_hip_scale.cuh"
+// Add standard quantization types missing from rocmfp4-llama fork
+#ifndef QK2_0
+#define QK2_0 8
+#endif
+#ifndef QR2_0
+#define QR2_0 2
+#endif
+
+typedef struct { uint32_t qs[QK2_0/8]; ggml_half d; } block_q2_0;
+
+
+// Dequantization for Q2_0 quantization type
+static __device__ __forceinline__ void dequantize_q2_0(const void * vx, const int64_t ib, const int iqs, float2 & v){
+    static constexpr float q2_vals[] = {-1.5f, -0.5f, +0.5f, +1.5f};
+    unsigned char q = ((uint32_t)x[ib].qs[iqs >> 1]) >> ((iqs & 1) << 1);
+    v.x = q2_vals[q & 0x3];
+}
 
 static __device__ __forceinline__ void dequantize_q1_0(const void * vx, const int64_t ib, const int iqs, float2 & v){
     const block_q1_0 * x = (const block_q1_0 *) vx;
