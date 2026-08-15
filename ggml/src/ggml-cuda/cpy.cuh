@@ -1,13 +1,3 @@
-// ROCmFP4 type definitions for CUDA operations
-#ifndef QK_ROCMFP4
-#define QK_ROCMFP4 32
-#endif
-#ifndef QR_ROCMFP4
-#define QR_ROCMFP4 2
-#endif
-typedef struct { uint8_t qs[QK_ROCMFP4/2]; uint8_t e[2]; } block_rocmfp4;
-typedef struct { uint8_t qs[QK_ROCMFP4/2]; uint8_t e; } block_rocmfp4_fast;
-
 
 #include "common.cuh"
 
