@@ -76,6 +76,10 @@ if (GGML_USE_ROCMFP4)
     add_compile_definitions(GGML_USE_ROCMFP4)
 endif()
 
+if (GGML_USE_HIP_MAPPED_COPY)
+    add_compile_definitions(GGML_USE_HIP_MAPPED_COPY)
+endif()
+
 if (GGML_CUDA_FA_ALL_QUANTS)
     file(GLOB   SRCS "../ggml-cuda/template-instances/fattn-vec*.cu")
     list(APPEND GGML_SOURCES_ROCM ${SRCS})

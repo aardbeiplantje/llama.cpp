@@ -5,6 +5,7 @@
 #include "../ggml-hip/dequantize_hip.cuh"
 #endif
 #include "cpy-utils.cuh"
+#include "ggml-backend-impl.h"
 #if defined(GGML_USE_MUSA) && defined(GGML_MUSA_MUDNN_COPY)
 #include "ggml-musa/mudnn.cuh"
 #endif // GGML_USE_MUSA && GGML_MUSA_MUDNN_COPY
@@ -749,6 +750,27 @@ void ggml_cuda_cpy(ggml_backend_cuda_context & ctx, const ggml_tensor * src0, gg
         src0->ne[3] == 1 && nb02 == ne00 * ne01 * (int64_t)ggml_element_size(src0);
 
     size_t mc_width = 0, mc_height = 0, mc_spitch = 0, mc_dpitch = 0;
+
+#if defined(GGML_USE_HIP_MAPPED_COPY)
+    // Zero‑copy fast path: if both tensors are views of the same hipHostRegisterMapped region,
+    // we can avoid any copy by turning the destination into a view of the source.
+    if (ggml_hip_same_mapped_region(src0, src1)) {
+        // Build a view of src0 that matches src1's shape/stride/offset.
+        // ggml_view_1d creates a tensor that shares src0's allocation with a byte offset.
+        size_t byte_offset = (char *)src1->data - (char *)src0->data;
+        // Note: ggml_view_1d expects the new tensor to have the same element size as src0.
+        // The caller guarantees src0 and src1 have the same total number of elements.
+        ggml_tensor *view = ggml_view_1d(
+            /*ctx=*/nullptr,               // we are in backend, no context needed
+            src0,
+            src1->ne[0],
+            src0->nb[0],
+            byte_offset);
+        // Overwrite destination tensor metadata with the view.
+        *src1 = *view;
+        return;
+    }
+#endif
 
     if (src0->type == src1->type && contiguous_srcs) {
         GGML_ASSERT(ggml_nbytes(src0) == ggml_nbytes(src1));

@@ -67,7 +67,29 @@ extern "C" {
         void * context;
         size_t size;
         enum ggml_backend_buffer_usage usage;
+#if defined(GGML_USE_HIP_MAPPED_COPY)
+        bool      hip_mapped;
+        void *    hip_mapped_base;
+        size_t    hip_mapped_size;
+#endif
     };
+
+#if defined(GGML_USE_HIP_MAPPED_COPY)
+static inline bool ggml_hip_same_mapped_region(const struct ggml_tensor *a,
+                                               const struct ggml_tensor *b)
+{
+    const struct ggml_backend_buffer *ba = a->buffer;
+    const struct ggml_backend_buffer *bb = b->buffer;
+    return ba->hip_mapped && bb->hip_mapped &&
+           ba->hip_mapped_base == bb->hip_mapped_base;
+}
+#else
+static inline bool ggml_hip_same_mapped_region(const struct ggml_tensor *a,
+                                               const struct ggml_tensor *b)
+{
+    (void)a; (void)b; return false;
+}
+#endif
 
     GGML_API ggml_backend_buffer_t ggml_backend_buffer_init(
                    ggml_backend_buffer_type_t buft,
