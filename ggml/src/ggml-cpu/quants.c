@@ -201,7 +201,7 @@ void ggml_vec_dot_q2_0_q8_0_generic(int n, float * GGML_RESTRICT s, size_t bs, c
             const float d1 = GGML_CPU_FP16_TO_FP32(yb->d);
             int sumi_block = 0;
 
-            const uint8_t * GGML_RESTRICT qs = &x[i].qs[k * 8];
+            const uint8_t * GGML_RESTRICT qs = (const uint8_t *)&x[i].qs[0] + k * 8;
             const int8_t  * GGML_RESTRICT qy = yb->qs;
 
             for (int b = 0; b < 8; ++b) {

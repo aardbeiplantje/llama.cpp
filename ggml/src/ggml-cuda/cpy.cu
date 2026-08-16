@@ -1,5 +1,9 @@
 #include "cpy.cuh"
+#if !defined(GGML_USE_HIP)
 #include "dequantize.cuh"
+#else
+#include "../ggml-hip/dequantize_hip.cuh"
+#endif
 #include "cpy-utils.cuh"
 #if defined(GGML_USE_MUSA) && defined(GGML_MUSA_MUDNN_COPY)
 #include "ggml-musa/mudnn.cuh"
@@ -153,6 +157,23 @@ static __global__ void cpy_f32_q(const char * cx, char * cdst, const int64_t ne,
     cpy_blck(cx + x_offset, cdst + dst_offset);
 }
 
+#if defined(GGML_USE_HIP) && defined(GGML_USE_ROCMFP4)
+template<int qk, int block_bytes>
+__global__ void cpy_q_q_block(const char * cx, char * cdst,
+    const int64_t ne,
+    const int64_t ne00, const int64_t ne01, const int64_t ne02,
+    const int64_t nb00, const int64_t nb01, const int64_t nb02,
+    const int64_t nb03, const int64_t ne10, const int64_t ne11, const int64_t ne12,
+    const int64_t nb10, const int64_t nb11, const int64_t nb12, const int64_t nb13) {
+    const int64_t blocks = ne / qk;
+    const int64_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= blocks) return;
+    const char * src = cx + idx * block_bytes;
+    char * dst = cdst + idx * block_bytes;
+    for (int b = 0; b < block_bytes; ++b) dst[b] = src[b];
+}
+#endif
+
 static __global__ void cpy_rocmfp4_f32_contiguous(const block_rocmfp4 * cx, float * cdst, const int64_t ne) {
     const int64_t packed_idx = (int64_t) blockDim.x*blockIdx.x + threadIdx.x;
     const int64_t packed_count = (ne / QK_ROCMFP4) * (QK_ROCMFP4/2);
@@ -300,6 +321,7 @@ static void ggml_cpy_f32_q8_0_cuda(
         (cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13);
 }
 
+#if !defined(GGML_USE_HIP)
 static void ggml_cpy_q8_0_f32_cuda(
     const char * cx, char * cdst, const int64_t ne,
     const int64_t ne00, const int64_t ne01, const int64_t ne02, const int64_t nb00, const int64_t nb01, const int64_t nb02,
@@ -310,6 +332,7 @@ static void ggml_cpy_q8_0_f32_cuda(
     cpy_q_f32<cpy_blck_q8_0_f32, QK8_0><<<num_blocks, CUDA_CPY_BLOCK_SIZE, 0, stream>>>
         (cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13);
 }
+#endif
 
 static void ggml_cpy_f32_q4_0_cuda(
     const char * cx, char * cdst, const int64_t ne,
@@ -323,6 +346,7 @@ static void ggml_cpy_f32_q4_0_cuda(
         (cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13);
 }
 
+#if !defined(GGML_USE_HIP)
 static void ggml_cpy_q4_0_f32_cuda(
     const char * cx, char * cdst, const int64_t ne,
     const int64_t ne00, const int64_t ne01, const int64_t ne02,
@@ -336,6 +360,7 @@ static void ggml_cpy_q4_0_f32_cuda(
         cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03,
          ne10, ne11, ne12, nb10, nb11, nb12, nb13);
 }
+#endif
 
 static void ggml_cpy_f32_q4_1_cuda(
     const char * cx, char * cdst, const int64_t ne,
@@ -349,6 +374,7 @@ static void ggml_cpy_f32_q4_1_cuda(
         (cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13);
 }
 
+#if !defined(GGML_USE_HIP)
 static void ggml_cpy_q4_1_f32_cuda(
     const char * cx, char * cdst, const int64_t ne,
     const int64_t ne00, const int64_t ne01, const int64_t ne02,
@@ -362,6 +388,7 @@ static void ggml_cpy_q4_1_f32_cuda(
         cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03,
          ne10, ne11, ne12, nb10, nb11, nb12, nb13);
 }
+#endif
 
 static void ggml_cpy_f32_q5_0_cuda(
     const char * cx, char * cdst, const int64_t ne,
@@ -375,6 +402,7 @@ static void ggml_cpy_f32_q5_0_cuda(
         (cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13);
 }
 
+#if !defined(GGML_USE_HIP)
 static void ggml_cpy_q5_0_f32_cuda(
     const char * cx, char * cdst, const int64_t ne,
     const int64_t ne00, const int64_t ne01, const int64_t ne02,
@@ -388,6 +416,7 @@ static void ggml_cpy_q5_0_f32_cuda(
         cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03,
         ne10, ne11, ne12, nb10, nb11, nb12, nb13);
 }
+#endif
 
 static void ggml_cpy_f32_q5_1_cuda(
     const char * cx, char * cdst, const int64_t ne,
@@ -401,6 +430,7 @@ static void ggml_cpy_f32_q5_1_cuda(
         (cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13);
 }
 
+#if !defined(GGML_USE_HIP)
 static void ggml_cpy_q5_1_f32_cuda(
     const char * cx, char * cdst, const int64_t ne,
     const int64_t ne00, const int64_t ne01, const int64_t ne02,
@@ -414,6 +444,7 @@ static void ggml_cpy_q5_1_f32_cuda(
         cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03,
         ne10, ne11, ne12, nb10, nb11, nb12, nb13);
 }
+#endif
 
 static void ggml_cpy_f32_iq4_nl_cuda(
     const char * cx, char * cdst, const int64_t ne,
@@ -557,6 +588,73 @@ static void ggml_cpy_rocmfp4_fast_f32_contiguous_hip(
     cpy_rocmfp4_fast_f32_contiguous<<<num_blocks, CUDA_CPY_BLOCK_SIZE, 0, stream>>>(
             (const block_rocmfp4_fast *) cx, (float *) cdst, ne);
 }
+
+#if defined(GGML_USE_HIP)
+static void ggml_cpy_q8_0_f32_cuda(
+    const char * cx, char * cdst, const int64_t ne,
+    const int64_t ne00, const int64_t ne01, const int64_t ne02, const int64_t nb00, const int64_t nb01, const int64_t nb02,
+    const int64_t nb03, const int64_t ne10, const int64_t ne11, const int64_t ne12, const int64_t nb10, const int64_t nb11, const int64_t nb12, const int64_t nb13, cudaStream_t stream) {
+
+    const int64_t num_blocks = (ne/QK8_0 + CUDA_CPY_BLOCK_SIZE - 1) / CUDA_CPY_BLOCK_SIZE;
+    GGML_ASSERT(num_blocks <= INT_MAX);
+    cpy_q_f32<cpy_blck_q_f32<dequantize_q8_0, QK8_0>, QK8_0><<<num_blocks, CUDA_CPY_BLOCK_SIZE, 0, stream>>>
+        (cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13);
+}
+
+static void ggml_cpy_q4_0_f32_cuda(
+    const char * cx, char * cdst, const int64_t ne,
+    const int64_t ne00, const int64_t ne01, const int64_t ne02,
+    const int64_t nb00, const int64_t nb01, const int64_t nb02,
+    const int64_t nb03, const int64_t ne10, const int64_t ne11, const int64_t ne12,
+    const int64_t nb10, const int64_t nb11, const int64_t nb12, const int64_t nb13,
+    cudaStream_t stream) {
+    const int64_t num_blocks = (ne/QK4_0 + CUDA_CPY_BLOCK_SIZE - 1) / CUDA_CPY_BLOCK_SIZE;
+    GGML_ASSERT(num_blocks <= INT_MAX);
+    cpy_q_f32<cpy_blck_q_f32<dequantize_q4_0, QK4_0>, QK4_0><<<num_blocks, CUDA_CPY_BLOCK_SIZE, 0, stream>>>(
+        cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03,
+         ne10, ne11, ne12, nb10, nb11, nb12, nb13);
+}
+
+static void ggml_cpy_q4_1_f32_cuda(
+    const char * cx, char * cdst, const int64_t ne,
+    const int64_t ne00, const int64_t ne01, const int64_t ne02,
+    const int64_t nb00, const int64_t nb01, const int64_t nb02,
+    const int64_t nb03, const int64_t ne10, const int64_t ne11, const int64_t ne12,
+    const int64_t nb10, const int64_t nb11, const int64_t nb12, const int64_t nb13,
+    cudaStream_t stream) {
+    const int64_t num_blocks = (ne/QK4_1 + CUDA_CPY_BLOCK_SIZE - 1) / CUDA_CPY_BLOCK_SIZE;
+    GGML_ASSERT(num_blocks <= INT_MAX);
+    cpy_q_f32<cpy_blck_q_f32<dequantize_q4_1, QK4_1>, QK4_1><<<num_blocks, CUDA_CPY_BLOCK_SIZE, 0, stream>>>(
+        cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03,
+         ne10, ne11, ne12, nb10, nb11, nb12, nb13);
+}
+
+static void ggml_cpy_q5_0_f32_cuda(
+    const char * cx, char * cdst, const int64_t ne,
+    const int64_t ne00, const int64_t ne01, const int64_t ne02, const int64_t nb00, const int64_t nb01, const int64_t nb02,
+    const int64_t nb03, const int64_t ne10, const int64_t ne11, const int64_t ne12, const int64_t nb10, const int64_t nb11, const int64_t nb12, const int64_t nb13, cudaStream_t stream) {
+
+    GGML_ASSERT(ne % QK5_0 == 0);
+    const int64_t num_blocks = (ne/QK5_0 + CUDA_CPY_BLOCK_SIZE - 1) / CUDA_CPY_BLOCK_SIZE;
+    GGML_ASSERT(num_blocks <= INT_MAX);
+    cpy_q_f32<cpy_blck_q_f32<dequantize_q5_0, QK5_0>, QK5_0><<<num_blocks, CUDA_CPY_BLOCK_SIZE, 0, stream>>>
+        (cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13);
+}
+
+static void ggml_cpy_q5_1_f32_cuda(
+    const char * cx, char * cdst, const int64_t ne,
+    const int64_t ne00, const int64_t ne01, const int64_t ne02,
+    const int64_t nb00, const int64_t nb01, const int64_t nb02,
+    const int64_t nb03, const int64_t ne10, const int64_t ne11, const int64_t ne12,
+    const int64_t nb10, const int64_t nb11, const int64_t nb12, const int64_t nb13,
+    cudaStream_t stream) {
+    const int64_t num_blocks = (ne/QK5_1 + CUDA_CPY_BLOCK_SIZE - 1) / CUDA_CPY_BLOCK_SIZE;
+    GGML_ASSERT(num_blocks <= INT_MAX);
+    cpy_q_f32<cpy_blck_q_f32<dequantize_q5_1, QK5_1>, QK5_1><<<num_blocks, CUDA_CPY_BLOCK_SIZE, 0, stream>>>(
+        cx, cdst, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03,
+         ne10, ne11, ne12, nb10, nb11, nb12, nb13);
+}
+#endif
 
 template <int block_bytes>
 static void ggml_cpy_rocmfp4_rocmfp4_hip(
@@ -727,6 +825,7 @@ void ggml_cuda_cpy(ggml_backend_cuda_context & ctx, const ggml_tensor * src0, gg
                 (src0_ddc, src1_ddc, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13, main_stream);
     } else if (src0->type == GGML_TYPE_Q5_1 && src1->type == GGML_TYPE_F32) {
         ggml_cpy_q5_1_f32_cuda
+                (src0_ddc, src1_ddc, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13, main_stream);
     } else if (src0->type == GGML_TYPE_F32 && src1->type == GGML_TYPE_Q4_0_ROCMFP4) {
         ggml_cpy_f32_rocmfp4_hip
                 (src0_ddc, src1_ddc, ne, ne00, ne01, ne02, nb00, nb01, nb02, nb03, ne10, ne11, ne12, nb10, nb11, nb12, nb13, main_stream);

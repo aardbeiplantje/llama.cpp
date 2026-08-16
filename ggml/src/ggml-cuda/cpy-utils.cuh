@@ -3,6 +3,9 @@
 #include "ggml-common.h"
 #include "convert.cuh"
 #include "../../rocmfp4/rocmfp4_hip_scale.cuh"
+#if defined(GGML_USE_HIP) && defined(GGML_USE_ROCMFP4)
+#include "../ggml-hip/dequantize_hip.cuh"
+#endif
 
 static __device__ __forceinline__ int best_index_int8(int n, const int8_t * val, float x) {
     if (x <= val[0]) return 0;
@@ -460,3 +463,28 @@ template<typename src_t, typename dst_t>
 static __device__ void cpy_1_scalar(const char * cxi, char * cdsti) {
     *(dst_t *) cdsti = ggml_cuda_cast<dst_t>(*(const src_t *) cxi);
 }
+
+#if defined(GGML_USE_HIP) && defined(GGML_USE_ROCMFP4)
+static __device__ void cpy_blck_rocmfp4_f32(const char * cxi, char * cdsti) {
+    float * cdstf = (float *)cdsti;
+    const int qk = QK_ROCMFP4;
+    #pragma unroll
+    for (int j = 0; j < qk/2; ++j) {
+        float2 dq;
+        dequantize_rocmfp4(cxi, 0, j, dq);
+        *(cdstf + j) = dq.x;
+        *(cdstf + j + qk/2) = dq.y;
+    }
+}
+static __device__ void cpy_blck_rocmfp4_fast_f32(const char * cxi, char * cdsti) {
+    float * cdstf = (float *)cdsti;
+    const int qk = QK_ROCMFP4;
+    #pragma unroll
+    for (int j = 0; j < qk/2; ++j) {
+        float2 dq;
+        dequantize_rocmfp4_fast(cxi, 0, j, dq);
+        *(cdstf + j) = dq.x;
+        *(cdstf + j + qk/2) = dq.y;
+    }
+}
+#endif

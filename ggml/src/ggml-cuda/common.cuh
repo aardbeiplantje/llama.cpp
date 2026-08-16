@@ -12,6 +12,15 @@
 #if defined(GGML_USE_HIP)
 #define GGML_COMMON_DECL_HIP
 #define GGML_COMMON_IMPL_HIP
+#ifndef QK2_0
+#define QK2_0 8
+#endif
+#ifndef QR2_0
+#define QR2_0 2
+#endif
+#ifndef QI2_0
+#define QI2_0 2
+#endif
 #else
 #define GGML_COMMON_DECL_CUDA
 #define GGML_COMMON_IMPL_CUDA

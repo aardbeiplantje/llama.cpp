@@ -70,6 +70,12 @@ list(APPEND GGML_SOURCES_ROCM ${SRCS})
 file(GLOB   SRCS "../ggml-cuda/template-instances/mmf*.cu")
 list(APPEND GGML_SOURCES_ROCM ${SRCS})
 
+if (GGML_USE_ROCMFP4)
+    list(APPEND GGML_SOURCES_ROCM "../../rocmfp4/rocmfp4_hip.cu")
+    list(APPEND GGML_SOURCES_ROCM "dequantize_hip.cu")
+    add_compile_definitions(GGML_USE_ROCMFP4)
+endif()
+
 if (GGML_CUDA_FA_ALL_QUANTS)
     file(GLOB   SRCS "../ggml-cuda/template-instances/fattn-vec*.cu")
     list(APPEND GGML_SOURCES_ROCM ${SRCS})
