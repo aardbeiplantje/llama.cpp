@@ -6,7 +6,7 @@ llama_add_compile_flags()
 
 # llama
 
-file(GLOB LLAMA_MODELS_SOURCES "models/*.cpp")
+file(GLOB LLAMA_MODELS_SOURCES "models/*.cpp" EXCLUDE "models/diffusion-gemma.cpp")
 
 add_library(llama
             ../include/llama.h
