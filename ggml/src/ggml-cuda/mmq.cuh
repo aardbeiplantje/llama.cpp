@@ -1390,6 +1390,17 @@ static size_t mmq_get_nbytes_shared(const ggml_cuda_mmq_config & config, const i
     return nbs_ids + nbs_x + GGML_PAD(nbs_y, config.nthreads*sizeof(int));
 }
 
+// Overload for host-side tile selection in mul_mat_q_case
+template <ggml_type type>
+static size_t mmq_get_nbytes_shared(int mmq_x, int mmq_y, int cc, int warp_size, int nwarps) {
+    // Create a config that matches what launch_mul_mat_q expects
+    const bool fallback = false;  // conservative for shared memory calculation
+    const ggml_cuda_mmq_config config = ggml_cuda_mmq_get_config(type, mmq_x, fallback, cc);
+    // Ensure nwarps matches config
+    GGML_ASSERT(config.nthreads == warp_size * nwarps);
+    return mmq_get_nbytes_shared(config, cc);
+}
+
 template <ggml_type type, int J, bool fallback>
 static void launch_mul_mat_q(ggml_backend_cuda_context & ctx, const mmq_args & args, cudaStream_t stream) {
     const int id = ggml_cuda_get_device();
@@ -1555,8 +1566,45 @@ void mul_mat_q_switch_J(ggml_backend_cuda_context & ctx, const mmq_args & args, 
     }
 }
 
-template <ggml_type type>
-void mul_mat_q_case(ggml_backend_cuda_context & ctx, const mmq_args & args, cudaStream_t stream) {
+
+// Host-side MMQ configuration helpers (needed for HIP compilation)
+static int get_mmq_x_max_host(const int cc) {
+    return (turing_mma_available(cc) || amd_wmma_available(cc)) ? 128 :
+        GGML_CUDA_CC_IS_NVIDIA(cc) && ggml_cuda_highest_compiled_arch(cc) >= GGML_CUDA_CC_VOLTA ?
+#ifdef GGML_CUDA_FORCE_MMQ
+            128                     : 64;
+#else
+            MMQ_DP4A_MAX_BATCH_SIZE : 64;
+#endif // GGML_CUDA_FORCE_MMQ
+}
+
+static int get_mmq_y_host(const int cc) {
+    return GGML_CUDA_CC_IS_AMD(cc) ? (GGML_CUDA_CC_IS_RDNA1(cc) ? 64 : 128) :
+        ((GGML_CUDA_CC_IS_NVIDIA(cc) && ggml_cuda_highest_compiled_arch(cc) >= GGML_CUDA_CC_VOLTA) ? 128 : 64);
+}
+
+static int mmq_get_granularity_host(const int mmq_x, const int cc) {
+    if (amd_mfma_available(cc) || amd_wmma_available(cc)) {
+        return mmq_x >= 128 ? 32 : 16;
+    } else if (turing_mma_available(cc) && mmq_x >= 48) {
+        return 16;
+    } else {
+        return 8;
+    }
+}
+
+#if defined(GGML_USE_HIP)
+static int mmq_get_nwarps_host(const int cc, const int warp_size) {
+    return amd_mfma_available(cc) ? 8 : 256/warp_size;
+}
+#else
+static int mmq_get_nwarps_host(const int /*cc*/, const int warp_size) {
+    return 256/warp_size;
+}
+#endif // GGML_USE_HIP
+
+template <ggml_type type, bool fallback>
+static void mul_mat_q_case_impl(ggml_backend_cuda_context & ctx, const mmq_args & args, cudaStream_t stream) {
     const int    id     = ggml_cuda_get_device();
     const int    cc     = ggml_cuda_info().devices[id].cc;
     const size_t smpbo  = ggml_cuda_info().devices[id].smpbo;
@@ -1595,7 +1643,6 @@ void mul_mat_q_case(ggml_backend_cuda_context & ctx, const mmq_args & args, cuda
         }
     }
 
-    constexpr bool fallback = (args.nrows_x % 128 != 0);
     switch (mmq_x_best) {
         case   8:
             launch_mul_mat_q<type,   8, fallback>(ctx, args, stream);
@@ -1649,6 +1696,15 @@ void mul_mat_q_case(ggml_backend_cuda_context & ctx, const mmq_args & args, cuda
             fprintf(stderr, "mmq_x_best=%d\n", mmq_x_best);
             GGML_ABORT("fatal error");
             break;
+    }
+}
+
+template <ggml_type type>
+void mul_mat_q_case(ggml_backend_cuda_context & ctx, const mmq_args & args, cudaStream_t stream) {
+    if (args.nrows_x % 128 == 0) {
+        mul_mat_q_case_impl<type, false>(ctx, args, stream);
+    } else {
+        mul_mat_q_case_impl<type, true>(ctx, args, stream);
     }
 }
 
