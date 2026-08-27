@@ -8,6 +8,7 @@
 #include "ggml.h"
 #include "llama.h"
 
+#include <list>
 #include <set>
 #include <sstream>
 #include <string>
@@ -581,12 +582,18 @@ struct common_params {
 
     // multimodal models (see tools/mtmd)
     struct common_params_model mmproj;
-    bool mmproj_use_gpu = true;     // use GPU for multimodal model
-    bool no_mmproj = false;         // explicitly disable multimodal model
-    std::vector<std::string> image; // path to image file(s) ; TODO: change the name to "media"
+    bool mmproj_use_gpu = true;                 // use GPU for multimodal model
+    ggml_backend_dev_t mmproj_device = nullptr; // GPU device to use for multimodal model
+    bool no_mmproj = false;                     // explicitly disable multimodal model
+    std::vector<std::string> image;             // path to image file(s) ; TODO: change the name to "media"
     int image_min_tokens = -1;
     int image_max_tokens = -1;
     int mtmd_batch_max_tokens = 1024;
+
+    // for video input
+    float       video_fps                   = 4.0f;
+    int64_t     video_timestamp_interval_ms = 5000;
+    std::string video_ffmpeg_bin_dir        = "";
 
     // finetune
     struct lr_opt lr;
@@ -1107,17 +1114,28 @@ const char * const LLM_KV_SPLIT_TENSORS_COUNT = "split.tensors.count";
 }
 
 //
-// MoE utils
+// FFN offload utils
 //
 
 const char * const LLM_FFN_EXPS_REGEX = "\\.ffn_(up|down|gate|gate_up)_(ch|)exps";
 
-inline std::string llm_ffn_exps_block_regex(int idx) {
-    return string_format("blk\\.%d%s", idx, LLM_FFN_EXPS_REGEX);
+const char * const LLM_FFN_DENSE_REGEX = "\\.ffn_(up|down|gate)\\.";
+
+inline std::string llm_ffn_block_regex(int idx, const char * ffn_regex) {
+    return string_format("blk\\.%d%s", idx, ffn_regex);
 }
 
 inline llama_model_tensor_buft_override llm_ffn_exps_cpu_override() {
     return { LLM_FFN_EXPS_REGEX, ggml_backend_cpu_buffer_type() };
+}
+
+inline void llm_add_n_cpu_ffn_overrides(int n, const char * ffn_regex, std::vector<llama_model_tensor_buft_override> & overrides) {
+    // keep strings alive and avoid leaking memory by storing them in a static list
+    static std::list<std::string> buft_override_strings;
+    for (int i = 0; i < n; ++i) {
+        buft_override_strings.push_back(llm_ffn_block_regex(i, ffn_regex));
+        overrides.push_back({buft_override_strings.back().c_str(), ggml_backend_cpu_buffer_type()});
+    }
 }
 
 //
