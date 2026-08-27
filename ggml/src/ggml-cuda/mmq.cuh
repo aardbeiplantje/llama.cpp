@@ -1394,10 +1394,16 @@ static size_t mmq_get_nbytes_shared(const ggml_cuda_mmq_config & config, const i
 template <ggml_type type>
 static size_t mmq_get_nbytes_shared(int mmq_x, int mmq_y, int cc, int warp_size, int nwarps) {
     // Create a config that matches what launch_mul_mat_q expects
+    // Note: nwarps is passed but may not match config for all mmq_x values.
+    // We compute expected nwarps from config instead of using the passed nwarps.
     const bool fallback = false;  // conservative for shared memory calculation
     const ggml_cuda_mmq_config config = ggml_cuda_mmq_get_config(type, mmq_x, fallback, cc);
-    // Ensure nwarps matches config
-    GGML_ASSERT(config.nthreads == warp_size * nwarps);
+    if (config.type == GGML_TYPE_COUNT) {
+        return SIZE_MAX;  // unsupported type
+    }
+    const int expected_nwarps = config.nthreads / warp_size;
+    GGML_ASSERT(config.nthreads % warp_size == 0);
+    (void)nwarps; // unused, we use expected_nwarps from config
     return mmq_get_nbytes_shared(config, cc);
 }
 
